@@ -1,0 +1,71 @@
+plugins {
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+group = 'io.certlocker'
+version = trustPluginVersion
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation "io.certlocker:trust-client:${trustClientVersion}"
+
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+gradlePlugin {
+    website = 'https://github.com/certlocker-io/trust-gradle-plugin/'
+    vcsUrl = 'https://github.com/certlocker-io/trust-gradle-plugin/'
+    plugins {
+        trust {
+            id = 'io.certlocker.trust'
+            displayName = 'Trust'
+            description = 'Exposes TrustService so a Gradle build can fetch secrets, certificates and tokens from Trust.'
+            implementationClass = 'io.certlocker.trust.gradle.TrustPlugin'
+        }
+    }
+}
+
+publishing {
+    publications.withType(MavenPublication).configureEach {
+        pom {
+            name = 'Trust Gradle Plugin'
+            description = 'Exposes TrustService so a Gradle build can fetch secrets, certificates and tokens from Trust.'
+            url = 'https://github.com/certlocker-io/trust-gradle-plugin/'
+            inceptionYear = '2026'
+            licenses {
+                license {
+                    name = 'Apache License, Version 2.0'
+                    url = 'https://www.apache.org/licenses/LICENSE-2.0'
+                }
+            }
+            developers {
+                developer {
+                    id = 'dhudson'
+                    name = 'Darren Hudson'
+                    url = 'https://github.com/Darren-Certlocker'
+                }
+            }
+            scm {
+                url = 'https://github.com/certlocker-io/trust-gradle-plugin/'
+                connection = 'scm:git:https://github.com/certlocker-io/trust-gradle-plugin.git'
+                developerConnection = 'scm:git:ssh://git@github.com/certlocker-io/trust-gradle-plugin.git'
+            }
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
