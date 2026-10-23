@@ -1,6 +1,7 @@
 plugins {
     id 'java-gradle-plugin'
     id 'maven-publish'
+    id 'com.gradle.plugin-publish' version '2.2.1'
 }
 
 group = 'io.certlocker'
@@ -12,7 +13,12 @@ java {
 }
 
 repositories {
-    mavenLocal()
+    // Used only to bootstrap tests before the client reaches Maven Central.
+    if (providers.gradleProperty('useMavenLocal').orNull == 'true') {
+        mavenLocal {
+            content { includeModule 'io.certlocker', 'trust-client' }
+        }
+    }
     mavenCentral()
 }
 
@@ -31,6 +37,12 @@ gradlePlugin {
         trust {
             id = 'io.certlocker.trust'
             displayName = 'Trust'
+            tags.set(['certlocker', 'secrets', 'certificates'])
+            compatibility {
+                features {
+                    configurationCache = false
+                }
+            }
             description = 'Exposes TrustService so a Gradle build can fetch secrets, certificates and tokens from Trust.'
             implementationClass = 'io.certlocker.trust.gradle.TrustPlugin'
         }
@@ -46,8 +58,9 @@ publishing {
             inceptionYear = '2026'
             licenses {
                 license {
-                    name = 'Apache License, Version 2.0'
-                    url = 'https://www.apache.org/licenses/LICENSE-2.0'
+                    name = 'GNU General Public License, Version 3'
+                    url = 'https://www.gnu.org/licenses/gpl-3.0.html'
+                    distribution = 'repo'
                 }
             }
             developers {

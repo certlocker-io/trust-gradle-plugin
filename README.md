@@ -9,7 +9,7 @@ The current use case is a Google Artifact Registry service-account file for the 
 
 Requires Java 21 and Gradle 9.
 
-The plugin depends on `io.certlocker:trust-client:1.0.1`. That client is on Maven Local until it is published to Maven Central.
+The plugin depends on `io.certlocker:trust-client:1.0.1`. Publish that client to Maven Central before publishing this plugin. For local development before then, install the client with `./gradlew publishToMavenLocal` in its repository and use `-PuseMavenLocal=true` when building this plugin.
 
 ## Build configuration
 
@@ -32,7 +32,7 @@ pluginManagement {
 }
 ```
 
-Publish this project first with `./gradlew publishToMavenLocal`.
+Publish this project first with `./gradlew publishToMavenLocal -PuseMavenLocal=true`.
 
 ## Getting started
 
@@ -144,8 +144,8 @@ The same plugin id works in a project build script when the secret is needed aft
 ## Build
 
 ```bash
-./gradlew test
-./gradlew publishToMavenLocal
+./gradlew test -PuseMavenLocal=true
+./gradlew publishToMavenLocal -PuseMavenLocal=true
 ```
 
 `test` does not call a live Trust application.
@@ -153,3 +153,7 @@ The same plugin id works in a project build script when the secret is needed aft
 ## License
 
 Licensed under GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
+
+## Publishing
+
+See [the publishing guide](docs/publishing.md) for Plugin Portal account setup and automated GitHub releases.
