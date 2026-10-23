@@ -36,14 +36,14 @@ def secret = trust.service.fetchSecret('SECRET_ID')
 
 Keep configuration cache disabled, as described in the README. No Maven Local setup or repository login is needed for public consumers after both artifacts are published.
 
-## Verification before the first client release
+## Local verification
 
-The Build workflow bootstraps the unpublished client from a pinned Git commit, installs it unsigned to Maven Local, and opts into `-PuseMavenLocal=true` for tests. This requires no publisher credentials and does not run the client's tests or access live Trust services. After `trust-client:1.0.1` is on Central, remove those bootstrap steps and the property from Build so CI uses Central too. Releases always use Central.
-
-Locally, install the client with `./gradlew publishToMavenLocal` in its repository, then run here:
+Run against the client published on Maven Central:
 
 ```bash
-./gradlew build generatePomFileForPluginMavenPublication -PuseMavenLocal=true
+./gradlew build generatePomFileForPluginMavenPublication
 ```
+
+For local client development, install the client with `./gradlew publishToMavenLocal` in its repository, then use `-PuseMavenLocal=true` when building this plugin. CI and releases always resolve the client from Maven Central.
 
 The TestKit functional tests verify use from both project and settings scripts without contacting a live Trust service.
