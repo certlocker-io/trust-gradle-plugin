@@ -1,0 +1,57 @@
+name: Publish release
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag, for example v1.0.1'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: publish-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          fetch-depth: 0
+      - name: Verify release version and source
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Use a vMAJOR.MINOR.PATCH tag'; exit 1; }
+          version=$(sed -n 's/^trustPluginVersion=//p' gradle.properties | tr -d '\r')
+          [[ "$RELEASE_TAG" == "v$version" ]] || { echo 'Tag must match trustPluginVersion in gradle.properties'; exit 1; }
+          git merge-base --is-ancestor HEAD origin/main || { echo 'Release commit must be on main'; exit 1; }
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: Require the client on Maven Central
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^trustClientVersion=//p' gradle.properties | tr -d '\r')
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          curl --fail --silent --show-error --output /dev/null "https://repo.maven.apache.org/maven2/io/certlocker/trust-client/$version/trust-client-$version.pom"
+      - run: ./gradlew --no-daemon build generatePomFileForPluginMavenPublication
+      - name: Publish to Gradle Plugin Portal
+        env:
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$GRADLE_PUBLISH_KEY" && -n "$GRADLE_PUBLISH_SECRET" ]] || { echo 'Set GRADLE_PUBLISH_KEY and GRADLE_PUBLISH_SECRET in GitHub secrets'; exit 1; }
+          ./gradlew --no-daemon publishPlugins
