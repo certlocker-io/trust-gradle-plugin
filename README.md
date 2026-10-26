@@ -9,7 +9,7 @@ The current use case is a Google Artifact Registry service-account file for the 
 
 Requires Java 21 and Gradle 9.
 
-The plugin depends on `io.certlocker:trust-client:1.0.1`. That client is on Maven Local until it is published to Maven Central.
+The plugin depends on `io.certlocker:trust-client:1.0.2-SNAPSHOT`. That client is on Maven Local until it is published to Maven Central.
 
 ## Build configuration
 
@@ -36,22 +36,29 @@ Publish this project first with `./gradlew publishToMavenLocal`.
 
 ## Getting started
 
-The API key is a Trust token. Take it from the environment. Do not commit it, and do not print secret values into the build log.
+### CI happy path — GitHub OIDC (no apiKey)
 
-`trust.url` defaults to `TRUST_URL`. `trust.apiKey` defaults to `TRUST_API_KEY`. Either can be set in the build.
+Workflow: `permissions: id-token: write`. Env: `TRUST_URL`, `TRUST_OIDC_AUDIENCE` (per-account, e.g. `https://trust.certlocker.io/oidc/<accountId>`).
 
 ```groovy
 plugins {
-    id 'io.certlocker.trust' version '1.0.0'
+    id 'io.certlocker.trust' version '1.0.1-SNAPSHOT'
 }
 
 trust {
-    url = 'https://trust.certlocker.io'
-    apiKey = System.getenv('TRUST_API_KEY')
+    url = System.getenv('TRUST_URL') ?: 'https://trust.certlocker.io'
+    oidcAudience = System.getenv('TRUST_OIDC_AUDIENCE')
+    // do not set apiKey for federated CI
 }
 
 def secret = trust.service.fetchSecret('SECRET_ID')
 ```
+
+### Break-glass apiKey
+
+`trust.apiKey` / `TRUST_API_KEY` remain for explicit break-glass only — not the federated CI design.
+
+`trust.url` defaults to `TRUST_URL`. `trust.oidcAudience` defaults to `TRUST_OIDC_AUDIENCE`. `trust.apiKey` defaults to `TRUST_API_KEY`.
 
 `trust.service` is a `io.certlocker.trustclient.service.TrustService`. Groovy calls the client methods directly:
 

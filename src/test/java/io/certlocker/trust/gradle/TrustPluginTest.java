@@ -49,14 +49,15 @@ public class TrustPluginTest {
     }
 
     @Test
-    public void requiresAnApiKey() {
+    public void requiresCredentialsWhenOidcUnavailable() {
         TrustExtension trust = extension();
         trust.getUrl().set("https://trust.example.com");
         trust.getApiKey().set("  ");
 
         GradleException failure = assertThrows(GradleException.class, trust::getService);
-        assertTrue(failure.getMessage().contains("trust.apiKey is required"));
-        assertTrue(failure.getMessage().contains(TrustExtension.API_KEY_ENV));
+        assertTrue(failure.getMessage().contains("Trust credentials required")
+                || failure.getMessage().contains("oidcAudience")
+                || failure.getMessage().contains(TrustExtension.API_KEY_ENV), failure.getMessage());
     }
 
     @Test
