@@ -41,7 +41,8 @@ public class TrustPluginFunctionalTest {
 
                 trust {
                     url = 'https://trust.example.com'
-                    apiKey = 'test-key'
+                    apiToken = 'test-key'
+                    accountId = 'acct-1'
                     connectTimeout = java.time.Duration.ofSeconds(3)
                 }
 
@@ -76,7 +77,8 @@ public class TrustPluginFunctionalTest {
 
                 trust {
                     url = 'https://trust.example.com'
-                    apiKey = 'test-key'
+                    apiToken = 'test-key'
+                    accountId = 'acct-1'
                 }
 
                 def service = trust.service
@@ -96,7 +98,7 @@ public class TrustPluginFunctionalTest {
     }
 
     @Test
-    public void readsUrlAndApiKeyFromTheEnvironment() throws IOException {
+    public void readsUrlAndApiTokenFromTheEnvironment() throws IOException {
         write(projectDir.resolve("settings.gradle"), "rootProject.name = 'trust-env-smoke'\n");
         write(projectDir.resolve("build.gradle"), """
                 plugins {
@@ -113,7 +115,8 @@ public class TrustPluginFunctionalTest {
         BuildResult result = runner("showService")
                 .withEnvironment(environment(Map.of(
                         TrustExtension.URL_ENV, "https://trust.example.com",
-                        TrustExtension.API_KEY_ENV, "test-key")))
+                        TrustExtension.API_TOKEN_ENV, "test-key",
+                        TrustExtension.ACCOUNT_ID_ENV, "acct-1")))
                 .build();
 
         assertTrue(result.getOutput().contains("trustService=" + SERVICE_CLASS));
@@ -135,7 +138,7 @@ public class TrustPluginFunctionalTest {
                 """);
 
         BuildResult result = runner("showService")
-                .withEnvironment(environmentWithout(TrustExtension.URL_ENV, TrustExtension.API_KEY_ENV))
+                .withEnvironment(environmentWithout(TrustExtension.URL_ENV, TrustExtension.API_TOKEN_ENV))
                 .buildAndFail();
 
         assertTrue(result.getOutput().contains("trust.url is required"));

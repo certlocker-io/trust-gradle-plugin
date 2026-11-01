@@ -20,7 +20,7 @@ import java.time.Duration;
 /**
  * One {@link TrustService} for the build. Closed when the build finishes.
  * <p>
- * The API key is a service parameter so the client can be created by Gradle.
+ * The API token is a service parameter so the client can be created by Gradle.
  * It is not logged.
  *
  * @author dhudson
@@ -43,11 +43,18 @@ public abstract class TrustClientService implements BuildService<TrustClientServ
         Property<String> getUrl();
 
         /**
-         * API key sent as {@code x-api-token}.
+         * API token sent as {@code x-api-token}.
          *
-         * @return API key
+         * @return API token
          */
-        Property<String> getApiKey();
+        Property<String> getApiToken();
+
+        /**
+         * Tenant account id for Gateway paths.
+         *
+         * @return account id
+         */
+        Property<String> getAccountId();
 
         /**
          * Connect timeout in milliseconds. Empty when the client default should be used.
@@ -60,14 +67,15 @@ public abstract class TrustClientService implements BuildService<TrustClientServ
     private final TrustService trustService;
 
     /**
-     * Opens the Trust client from the captured URL and API key.
+     * Opens the Trust client from the captured URL, account, and API token.
      */
     @Inject
     public TrustClientService() {
         String url = getParameters().getUrl().get();
         TrustClientBuilder builder = TrustClient.builder()
                 .url(url)
-                .apiKey(getParameters().getApiKey().get());
+                .accountId(getParameters().getAccountId().get())
+                .apiToken(getParameters().getApiToken().get());
         Long timeoutMillis = getParameters().getConnectTimeoutMillis().getOrNull();
         if (timeoutMillis != null) {
             builder.connectTimeout(Duration.ofMillis(timeoutMillis));

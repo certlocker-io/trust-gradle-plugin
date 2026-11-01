@@ -28,7 +28,8 @@ public class TrustPluginTest {
     public void exposesOneTrustService() {
         TrustExtension trust = extension();
         trust.getUrl().set("https://trust.example.com");
-        trust.getApiKey().set("test-key");
+        trust.getApiToken().set("test-key");
+        trust.getAccountId().set("acct-1");
         trust.getConnectTimeout().set(Duration.ofSeconds(3));
 
         try (TrustService first = trust.getService()) {
@@ -41,7 +42,8 @@ public class TrustPluginTest {
     public void requiresAUrl() {
         TrustExtension trust = extension();
         trust.getUrl().set("  ");
-        trust.getApiKey().set("test-key");
+        trust.getApiToken().set("test-key");
+        trust.getAccountId().set("acct-1");
 
         GradleException failure = assertThrows(GradleException.class, trust::getService);
         assertTrue(failure.getMessage().contains("trust.url is required"));
@@ -52,19 +54,41 @@ public class TrustPluginTest {
     public void requiresCredentialsWhenOidcUnavailable() {
         TrustExtension trust = extension();
         trust.getUrl().set("https://trust.example.com");
-        trust.getApiKey().set("  ");
+        trust.getApiToken().set("  ");
 
         GradleException failure = assertThrows(GradleException.class, trust::getService);
         assertTrue(failure.getMessage().contains("Trust credentials required")
                 || failure.getMessage().contains("oidcAudience")
-                || failure.getMessage().contains(TrustExtension.API_KEY_ENV), failure.getMessage());
+                || failure.getMessage().contains(TrustExtension.API_TOKEN_ENV), failure.getMessage());
+    }
+
+    @Test
+    public void requiresAccountIdWithApiToken() {
+        TrustExtension trust = extension();
+        trust.getUrl().set("https://trust.example.com");
+        trust.getApiToken().set("test-key");
+
+        GradleException failure = assertThrows(GradleException.class, trust::getService);
+        assertTrue(failure.getMessage().contains("trust.accountId"), failure.getMessage());
+    }
+
+    @Test
+    public void deviceOidcRequiresAudience() {
+        TrustExtension trust = extension();
+        trust.getUrl().set("https://trust.example.com");
+        trust.getDeviceId().set("laptop-1");
+        trust.getDevicePrivateKeyPath().set("/tmp/device.pem");
+
+        GradleException failure = assertThrows(GradleException.class, trust::getService);
+        assertTrue(failure.getMessage().contains("oidcAudience"), failure.getMessage());
     }
 
     @Test
     public void rejectsARelativeUrl() {
         TrustExtension trust = extension();
         trust.getUrl().set("trust.example.com");
-        trust.getApiKey().set("test-key");
+        trust.getApiToken().set("test-key");
+        trust.getAccountId().set("acct-1");
 
         RuntimeException failure = assertThrows(RuntimeException.class, trust::getService);
         assertTrue(causeChain(failure).contains("absolute http or https"), failure.toString());

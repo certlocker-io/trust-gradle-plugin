@@ -6,7 +6,7 @@ This repository publishes plugin ID `io.certlocker.trust` to the Gradle Plugin P
 
 1. Create or use a company-controlled [Gradle Plugin Portal account](https://plugins.gradle.org/user/login), and link the appropriate GitHub identity where requested.
 2. Generate the API key and secret in the account's API Keys tab.
-3. Add `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` to [repository Actions secrets](https://github.com/certlocker-io/trust-gradle-plugin/settings/secrets/actions). Do not use a Trust service API key here.
+3. Add `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET` to [repository Actions secrets](https://github.com/certlocker-io/trust-gradle-plugin/settings/secrets/actions). Do not use a Trust API token here.
 4. Check that the account can publish `io.certlocker.trust`. The first submission goes through Portal approval; be ready to demonstrate ownership of CertLocker's domain/repository if reviewers request it. Follow the [Portal publishing instructions](https://plugins.gradle.org/docs/publish-plugin).
 
 Portal signing is optional; the library's mandatory Maven Central signing is configured in its own repository. Both publications retain the GPL v3 license from their LICENSE files.
@@ -29,9 +29,10 @@ plugins {
 }
 trust {
     url = 'https://trust.certlocker.io'
-    apiKey = System.getenv('TRUST_API_KEY')
+    apiToken = System.getenv('TRUST_API_TOKEN')
 }
-def secret = trust.service.fetchSecret('SECRET_ID')
+// No id when this token is assigned to one secret. Otherwise pass the secret id.
+def secret = trust.service.fetchSecret()
 ```
 
 Keep configuration cache disabled, as described in the README. No Maven Local setup or repository login is needed for public consumers after both artifacts are published.

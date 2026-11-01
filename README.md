@@ -9,9 +9,7 @@ The current use case is a Google Artifact Registry service-account file for the 
 
 Requires Java 21 and Gradle 9.
 
-The plugin depends on `io.certlocker:trust-client:1.0.2-SNAPSHOT`. That client is on Maven Local until it is published to Maven Central.
-
-The plugin depends on `io.certlocker:trust-client:1.0.1`. Publish that client to Maven Central before publishing this plugin. For local development before then, install the client with `./gradlew publishToMavenLocal` in its repository and use `-PuseMavenLocal=true` when building this plugin.
+The plugin depends on `io.certlocker:trust-client:1.0.4`. Publish that client to Maven Central before publishing this plugin. For local development before then, install the client with `./gradlew publishToMavenLocal` in its repository and use `-PuseMavenLocal=true` when building this plugin.
 
 
 ## Build configuration
@@ -20,7 +18,7 @@ The plugin depends on `io.certlocker:trust-client:1.0.1`. Publish that client to
 
 ```groovy
 plugins {
-    id 'io.certlocker.trust' version '1.0.0'
+    id 'io.certlocker.trust' version '1.0.2'
 }
 ```
 
@@ -39,29 +37,169 @@ Publish this project first with `./gradlew publishToMavenLocal -PuseMavenLocal=t
 
 ## Getting started
 
-### CI happy path — GitHub OIDC (no apiKey)
+Auth is resolved the first time `trust.service` is used. Prefer OIDC; use `apiToken` only as break-glass.
 
-Workflow: `permissions: id-token: write`. Env: `TRUST_URL`, `TRUST_OIDC_AUDIENCE` (per-account, e.g. `https://trust.certlocker.io/oidc/<accountId>`).
+### Auth order
+
+1. **Device OIDC** — `trust.deviceId` + `trust.devicePrivateKeyPath` (+ `trust.oidcAudience`)
+2. **GitHub Actions** — ambient `ACTIONS_ID_TOKEN_*` + `trust.oidcAudience`
+3. **GCP** — ambient metadata / Cloud Run identity token + `trust.oidcAudience`
+4. **Azure (Entra managed identity)** — ambient IMDS + `trust.oidcAudience`
+5. **Azure DevOps Pipelines** — ambient `SYSTEM_OIDCREQUESTURI` + `SYSTEM_ACCESSTOKEN` (no Trust audience required)
+6. **Break-glass** — `trust.apiToken` + `trust.accountId`
+
+Environment conventions (set when the Gradle property is unset):
+
+| Property | Env |
+|----------|-----|
+| `trust.url` | `TRUST_URL` |
+| `trust.oidcAudience` | `TRUST_OIDC_AUDIENCE` |
+| `trust.oidcTokenType` | `TRUST_OIDC_TOKEN_TYPE` |
+| `trust.deviceId` | `TRUST_OIDC_DEVICE_ID` |
+| `trust.devicePrivateKeyPath` | `TRUST_OIDC_DEVICE_PRIVATE_KEY` |
+| `trust.deviceKeyId` | `TRUST_OIDC_DEVICE_KEY_ID` |
+| `trust.accountId` | `TRUST_ACCOUNT_ID` |
+| `trust.apiToken` | `TRUST_API_TOKEN` |
+
+`trust.accountId` is optional for OIDC (taken from the exchange response when unset) and **required** with break-glass `apiToken`. When set, it overrides the exchange `accountId`.
+
+### `oidcTokenType` — SECRET / CERTIFICATE / MCP
+
+Optional on every OIDC path. Must be allowed on the matched principal. When unset, Gateway uses the principal `defaultTokenType`.
 
 ```groovy
-plugins {
-    id 'io.certlocker.trust' version '1.0.1-SNAPSHOT'
-}
-
 trust {
     url = System.getenv('TRUST_URL') ?: 'https://trust.certlocker.io'
     oidcAudience = System.getenv('TRUST_OIDC_AUDIENCE')
-    // do not set apiKey for federated CI
+    oidcTokenType = 'SECRET' // or CERTIFICATE, or MCP
 }
+```
 
+```bash
+export TRUST_OIDC_TOKEN_TYPE=CERTIFICATE
+```
+
+### Device OIDC (enrolled machine)
+
+Mint Ed25519 / `EdDSA` JWT from the enroll private key, exchange at Gateway, then fetch. Never commit the PEM.
+
+```groovy
+trust {
+    url = System.getenv('TRUST_URL') ?: 'https://trust.certlocker.io'
+    oidcAudience = System.getenv('TRUST_OIDC_AUDIENCE') // https://trust.certlocker.io/oidc/<accountId>
+    deviceId = System.getenv('TRUST_OIDC_DEVICE_ID')
+    devicePrivateKeyPath = System.getenv('TRUST_OIDC_DEVICE_PRIVATE_KEY') // PKCS#8 PEM path
+    deviceKeyId = System.getenv('TRUST_OIDC_DEVICE_KEY_ID')               // optional kid
+    // deviceJwtTtlMinutes = 5  // optional; default 5
+    // oidcTokenType = 'SECRET'
+    // accountId = System.getenv('TRUST_ACCOUNT_ID')  // optional override
+}
+```
+
+```bash
+export TRUST_URL=https://trust.certlocker.io
+export TRUST_OIDC_AUDIENCE=https://trust.certlocker.io/oidc/<accountId>
+export TRUST_OIDC_DEVICE_ID=<enrolled-device-id>
+export TRUST_OIDC_DEVICE_PRIVATE_KEY=$HOME/.trust/device.pem
+# optional:
+# export TRUST_OIDC_DEVICE_KEY_ID=<enrolled-key-id>
+# export TRUST_OIDC_TOKEN_TYPE=SECRET
+# export TRUST_ACCOUNT_ID=<accountId>
+```
+
+### Ambient GitHub Actions OIDC
+
+Workflow needs `permissions: id-token: write`. Do not set `apiToken`.
+
+```yaml
+# .github/workflows/build.yml
+permissions:
+  id-token: write
+  contents: read
+env:
+  TRUST_URL: https://trust.certlocker.io
+  TRUST_OIDC_AUDIENCE: https://trust.certlocker.io/oidc/<accountId>
+  # TRUST_OIDC_TOKEN_TYPE: SECRET
+```
+
+```groovy
+trust {
+    url = System.getenv('TRUST_URL') ?: 'https://trust.certlocker.io'
+    oidcAudience = System.getenv('TRUST_OIDC_AUDIENCE')
+    // oidcTokenType = 'SECRET'
+}
 def secret = trust.service.fetchSecret('SECRET_ID')
 ```
 
-### Break-glass apiKey
+### Ambient GCP OIDC
 
-`trust.apiKey` / `TRUST_API_KEY` remain for explicit break-glass only — not the federated CI design.
+Runs on GCE / GKE Workload Identity / Cloud Run when the metadata server can mint an identity token for the Trust audience. Bind a GCP principal to the service-account email in Trust.
 
-`trust.url` defaults to `TRUST_URL`. `trust.oidcAudience` defaults to `TRUST_OIDC_AUDIENCE`. `trust.apiKey` defaults to `TRUST_API_KEY`.
+```bash
+export TRUST_URL=https://trust.certlocker.io
+export TRUST_OIDC_AUDIENCE=https://trust.certlocker.io/oidc/<accountId>
+# export TRUST_OIDC_TOKEN_TYPE=SECRET
+```
+
+```groovy
+trust {
+    url = System.getenv('TRUST_URL') ?: 'https://trust.certlocker.io'
+    oidcAudience = System.getenv('TRUST_OIDC_AUDIENCE')
+}
+```
+
+### Ambient Azure (Entra managed identity)
+
+Runs where Azure Instance Metadata can mint a token for the Trust audience. Bind an AZURE principal (object id / app id / subject) in Trust.
+
+```bash
+export TRUST_URL=https://trust.certlocker.io
+export TRUST_OIDC_AUDIENCE=https://trust.certlocker.io/oidc/<accountId>
+# export TRUST_OIDC_TOKEN_TYPE=SECRET
+```
+
+```groovy
+trust {
+    url = System.getenv('TRUST_URL') ?: 'https://trust.certlocker.io'
+    oidcAudience = System.getenv('TRUST_OIDC_AUDIENCE')
+}
+```
+
+### Ambient Azure DevOps Pipelines OIDC
+
+Needs `SYSTEM_OIDCREQUESTURI` and `SYSTEM_ACCESSTOKEN` (ADO sets these for OIDC-enabled service connections / pipelines). No Trust `oidcAudience` required. Bind an `AZURE_DEVOPS` principal to the pipeline subject (`sc://…` or `p://…`).
+
+```yaml
+# azure-pipelines.yml (illustrative)
+variables:
+  TRUST_URL: https://trust.certlocker.io
+  # TRUST_OIDC_TOKEN_TYPE: SECRET
+```
+
+```groovy
+trust {
+    url = System.getenv('TRUST_URL') ?: 'https://trust.certlocker.io'
+    // oidcAudience not required for Azure DevOps
+}
+```
+
+### Break-glass apiToken
+
+Explicit only — not the federated CI design. Both token and account id are required.
+
+```groovy
+trust {
+    url = System.getenv('TRUST_URL') ?: 'https://trust.certlocker.io'
+    apiToken = System.getenv('TRUST_API_TOKEN')
+    accountId = System.getenv('TRUST_ACCOUNT_ID')
+}
+```
+
+```bash
+export TRUST_URL=https://trust.certlocker.io
+export TRUST_API_TOKEN=<x-api-token>
+export TRUST_ACCOUNT_ID=<accountId>
+```
 
 `trust.service` is a `io.certlocker.trustclient.service.TrustService`. Groovy calls the client methods directly:
 
@@ -69,9 +207,32 @@ def secret = trust.service.fetchSecret('SECRET_ID')
 - `getCertificate`, `fetchCertificate`, `fetchCertificateBundle`
 - `getToken`
 
+### Asset tokens
+
+An asset token is an `x-api-token` created for one secret or one certificate and assigned that asset. Trust already knows which asset the token can read, so the call omits the id.
+
+```groovy
+// SECRET token assigned to one secret, such as the GAR service account
+def serviceAccount = trust.service.fetchSecret()
+def configuration = trust.service.getSecretAsConfiguration()
+
+// CERTIFICATE token assigned to one certificate
+def certificate = trust.service.fetchCertificate()
+def bundle = trust.service.fetchCertificateBundle()
+```
+
+The same no-argument form exists for `getSecret`, `getSecretAsPem`, `getSecretAsPrivateKey`, `getSecretAsPassword`, `getSecretAsCredentials`, and `getCertificate`.
+
+Pass an id when the token is not assigned to a single asset:
+
+```groovy
+def secret = trust.service.fetchSecret('SECRET_ID')
+def certificate = trust.service.fetchCertificate('CERTIFICATE_ID')
+```
+
 The client is created the first time `trust.service` is used, and closed when the build finishes. Applying the plugin does not call Trust. A fetch runs when the `TrustService` method is called. In `settings.gradle` that is during settings evaluation, on every build. `trust.connectTimeout` overrides the client default of 10 seconds.
 
-Leave the configuration cache disabled. The API key is a build-service parameter, and with the cache enabled Gradle can store that key and replay an earlier fetch.
+Leave the configuration cache disabled. The API token is a build-service parameter, and with the cache enabled Gradle can store that token and replay an earlier fetch.
 
 ## Artifact Registry service account
 
@@ -88,15 +249,17 @@ pluginManagement {
 }
 
 plugins {
-    id 'io.certlocker.trust' version '1.0.0'
+    id 'io.certlocker.trust' version '1.0.2'
 }
 
 trust {
     url = 'https://trust.certlocker.io'
-    apiKey = System.getenv('TRUST_API_KEY')
+    apiToken = System.getenv('TRUST_API_TOKEN')
+    accountId = System.getenv('TRUST_ACCOUNT_ID')
 }
 
-def serviceAccount = trust.service.fetchSecret('SECRET_ID')
+// No id: this apiToken is a SECRET token assigned to the service-account secret.
+def serviceAccount = trust.service.fetchSecret()
 gradle.ext.garServiceAccount = serviceAccount
 
 dependencyResolutionManagement {

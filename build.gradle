@@ -13,6 +13,7 @@ java {
 }
 
 repositories {
+    mavenLocal()
     // Used only to bootstrap tests before the client reaches Maven Central.
     if (providers.gradleProperty('useMavenLocal').orNull == 'true') {
         mavenLocal {

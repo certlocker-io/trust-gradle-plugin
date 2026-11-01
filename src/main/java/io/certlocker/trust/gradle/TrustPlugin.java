@@ -39,11 +39,24 @@ public class TrustPlugin implements Plugin<Object> {
         }
     }
 
+    /**
+     * Creates the {@code trust} extension and applies environment-variable conventions.
+     *
+     * @param target project or settings that receives the extension
+     * @param gradle build that owns the shared Trust client
+     * @param providers provider factory used to read environment variables
+     */
     private static void register(ExtensionAware target, Gradle gradle, ProviderFactory providers) {
         TrustExtension extension = target.getExtensions().create(
                 TrustExtension.NAME, TrustExtension.class, gradle);
         extension.getUrl().convention(providers.environmentVariable(TrustExtension.URL_ENV));
-        extension.getApiKey().convention(providers.environmentVariable(TrustExtension.API_KEY_ENV));
+        extension.getApiToken().convention(providers.environmentVariable(TrustExtension.API_TOKEN_ENV));
+        extension.getAccountId().convention(providers.environmentVariable(TrustExtension.ACCOUNT_ID_ENV));
         extension.getOidcAudience().convention(providers.environmentVariable(TrustExtension.OIDC_AUDIENCE_ENV));
+        extension.getDeviceId().convention(providers.environmentVariable(TrustExtension.DEVICE_ID_ENV));
+        extension.getDevicePrivateKeyPath().convention(
+                providers.environmentVariable(TrustExtension.DEVICE_PRIVATE_KEY_ENV));
+        extension.getDeviceKeyId().convention(providers.environmentVariable(TrustExtension.DEVICE_KEY_ID_ENV));
+        extension.getOidcTokenType().convention(providers.environmentVariable(TrustExtension.OIDC_TOKEN_TYPE_ENV));
     }
 }
