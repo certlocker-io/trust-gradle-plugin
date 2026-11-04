@@ -56,6 +56,8 @@ public abstract class TrustClientService implements BuildService<TrustClientServ
          */
         Property<String> getAccountId();
 
+        Property<Boolean> getLegacyApi();
+
         /**
          * Connect timeout in milliseconds. Empty when the client default should be used.
          *
@@ -74,8 +76,10 @@ public abstract class TrustClientService implements BuildService<TrustClientServ
         String url = getParameters().getUrl().get();
         TrustClientBuilder builder = TrustClient.builder()
                 .url(url)
-                .accountId(getParameters().getAccountId().get())
+                .legacyApi(getParameters().getLegacyApi().getOrElse(false))
                 .apiToken(getParameters().getApiToken().get());
+        String account = getParameters().getAccountId().getOrElse("");
+        if (!account.isBlank()) builder.accountId(account);
         Long timeoutMillis = getParameters().getConnectTimeoutMillis().getOrNull();
         if (timeoutMillis != null) {
             builder.connectTimeout(Duration.ofMillis(timeoutMillis));

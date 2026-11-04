@@ -9,7 +9,7 @@ The current use case is a Google Artifact Registry service-account file for the 
 
 Requires Java 21 and Gradle 9.
 
-The plugin depends on `io.certlocker:trust-client:1.0.4`. Publish that client to Maven Central before publishing this plugin. For local development before then, install the client with `./gradlew publishToMavenLocal` in its repository and use `-PuseMavenLocal=true` when building this plugin.
+The plugin depends on `io.certlocker:trust-client:1.0.5`. Publish that client to Maven Central before publishing this plugin. For local development before then, install the client with `./gradlew publishToMavenLocal` in its repository and use `-PuseMavenLocal=true` when building this plugin.
 
 
 ## Build configuration
@@ -330,3 +330,33 @@ Licensed under GNU General Public License v3.0. See the [LICENSE](LICENSE) file 
 ## Publishing
 
 See [the publishing guide](docs/publishing.md) for Plugin Portal account setup and automated GitHub releases.
+
+## Gateway rollout compatibility (2026-11-04)
+
+Legacy Gateway URLs and the new account-scoped URLs are both supported. Select
+the mode explicitly during rollout; authentication or authorization failures never
+trigger a retry against the other mode. The account must belong to the token.
+
+Version 1.0.3 uses Java client 1.0.5. Publish the client first; for local work,
+run `./gradlew publishToMavenLocal` in the updated Java client checkout and build
+this plugin with `-PuseMavenLocal=true`.
+
+```groovy
+trust {
+    url = System.getenv('TRUST_URL') // base without /rest
+    apiToken = System.getenv('TRUST_API_TOKEN')
+    legacyApi = true // existing Gateway; accountId is optional
+}
+```
+
+`TRUST_LEGACY_API=true` supplies the same default. For the new Gateway, leave it
+false and set `accountId`/`TRUST_ACCOUNT_ID`. OIDC still derives account ID from
+the exchange. No automatic route fallback occurs on permission errors.
+
+Validation: tracked plugin/unit/TestKit tests plus `GatewayCompatibilityTest`
+pass with the local updated client (11 tests), including actual HTTP requests in
+both route modes. Run `./gradlew test -PuseMavenLocal=true` in a clean checkout.
+This workspace also contains a pre-existing, untracked `TrustOidcFunctionalTest`
+with stale no-account fixtures; three of its cases fail and it is excluded from
+the tracked-suite result. It was preserved unchanged. No live Gradle/OIDC claim
+is made and no plugin release was published.

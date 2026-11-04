@@ -51,6 +51,7 @@ public class TrustPlugin implements Plugin<Object> {
                 TrustExtension.NAME, TrustExtension.class, gradle);
         extension.getUrl().convention(providers.environmentVariable(TrustExtension.URL_ENV));
         extension.getApiToken().convention(providers.environmentVariable(TrustExtension.API_TOKEN_ENV));
+        extension.getLegacyApi().convention(providers.environmentVariable("TRUST_LEGACY_API").map(Boolean::parseBoolean).orElse(false));
         extension.getAccountId().convention(providers.environmentVariable(TrustExtension.ACCOUNT_ID_ENV));
         extension.getOidcAudience().convention(providers.environmentVariable(TrustExtension.OIDC_AUDIENCE_ENV));
         extension.getDeviceId().convention(providers.environmentVariable(TrustExtension.DEVICE_ID_ENV));
