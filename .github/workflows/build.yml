@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: certlocker-io/trust-java-client
-          ref: 76fa2da5486c81326ef0bd40ded44c03fcb3b2bf
+          ref: 5a084da1665143247a148c37907cd4ca65c7da83
           path: .ci/trust-java-client
       - name: Build Java client dependency
         working-directory: .ci/trust-java-client
