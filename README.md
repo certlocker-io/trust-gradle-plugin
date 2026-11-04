@@ -360,3 +360,10 @@ This workspace also contains a pre-existing, untracked `TrustOidcFunctionalTest`
 with stale no-account fixtures; three of its cases fail and it is excluded from
 the tracked-suite result. It was preserved unchanged. No live Gradle/OIDC claim
 is made and no plugin release was published.
+
+### Development CI
+
+Pushes to `main` and `dev` run the build and tests. CI builds the pinned Java
+client source into Maven local before building the plugin, so development does
+not depend on a new client version already being released to Maven Central.
+Release publishing remains a separate workflow.
