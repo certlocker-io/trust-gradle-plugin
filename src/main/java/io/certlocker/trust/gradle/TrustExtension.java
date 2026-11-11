@@ -167,6 +167,9 @@ public abstract class TrustExtension {
      */
     public abstract Property<String> getAccountId();
 
+    /** Explicitly use pre-account Gateway routes during rollout. */
+    public abstract Property<Boolean> getLegacyApi();
+
     /**
      * Per-account OIDC audience for GitHub Actions and DEVICE federation.
      *
@@ -246,6 +249,7 @@ public abstract class TrustExtension {
                     spec.getParameters().getUrl().set(url);
                     spec.getParameters().getApiToken().set(auth.apiToken());
                     spec.getParameters().getAccountId().set(auth.accountId());
+                    spec.getParameters().getLegacyApi().set(getLegacyApi().getOrElse(false));
                     if (getConnectTimeout().isPresent()) {
                         spec.getParameters().getConnectTimeoutMillis().set(getConnectTimeout().get().toMillis());
                     }
@@ -374,12 +378,12 @@ public abstract class TrustExtension {
 
         String apiToken = blankToNull(getApiToken().getOrNull());
         if (apiToken != null) {
-            if (configuredAccount == null) {
+            if (configuredAccount == null && !getLegacyApi().getOrElse(false)) {
                 throw new GradleException(
                         "trust.accountId is required with trust.apiToken. Set trust.accountId or "
                                 + ACCOUNT_ID_ENV + ".");
             }
-            return new ResolvedAuth(apiToken, configuredAccount);
+            return new ResolvedAuth(apiToken, configuredAccount == null ? "" : configuredAccount);
         }
 
         throw new GradleException(
